@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,7 +9,10 @@ import {
   Alert,
 } from 'react-native';
 import { useThemeContext } from '../../contexts/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
 import { Colors } from '../../constants/theme';
+import api from '../../services/api';
+import { SpecializationType } from '../../types';
 
 type ThemeOption = 'light' | 'dark' | 'auto';
 
@@ -25,13 +28,50 @@ const themeOptions: SettingsOption[] = [
   { id: 'auto', label: '🔄 Auto', value: 'auto' },
 ];
 
+const specializationOptions: { id: SpecializationType; label: string }[] = [
+  { id: 'SBL', label: 'SBL' },
+  { id: 'Conventional', label: 'Conventional' },
+  { id: 'Powerlifting', label: 'Powerlifting' },
+];
+
 export default function SettingsScreen() {
   const { theme, setTheme, isDark } = useThemeContext();
+  const { user } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [messagesNotifications, setMessagesNotifications] = useState(true);
+  const [specialization, setSpecialization] = useState<SpecializationType | undefined>(
+    user?.specialization
+  );
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setSpecialization(user?.specialization);
+  }, [user?.specialization]);
 
   const handleThemeChange = (newTheme: ThemeOption) => {
     setTheme(newTheme);
+  };
+
+  const handleSpecializationChange = async (newSpec: SpecializationType) => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
+      setSpecialization(newSpec);
+      await api.updateUserProfile(user.id, {
+        specialization: newSpec,
+      });
+      Alert.alert('Success', 'Lifting specialization updated!');
+    } catch (error: any) {
+      Alert.alert(
+        'Error',
+        error.response?.data?.error || 'Failed to update specialization'
+      );
+      // Revert on error
+      setSpecialization(user?.specialization);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExportData = () => {
@@ -59,6 +99,41 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: currentColors.background }]}>
+      {/* Lifting Specialization Section */}
+      <View style={[styles.section, { borderBottomColor: isDark ? '#333' : '#e0e0e0' }]}>
+        <Text style={[styles.sectionTitle, { color: currentColors.text }]}>
+          Lifting Specialization
+        </Text>
+        <Text style={[styles.sectionDescription, { color: currentColors.textSecondary }]}>
+          {specialization ? `Current: ${specialization}` : 'Not set'}
+        </Text>
+
+        <View style={styles.specializationOptions}>
+          {specializationOptions.map((option) => (
+            <TouchableOpacity
+              key={option.id}
+              style={[
+                styles.specializationOption,
+                specialization === option.id && styles.specializationOptionActive,
+                { borderColor: isDark ? '#444' : '#ddd' },
+              ]}
+              onPress={() => handleSpecializationChange(option.id)}
+              disabled={loading}
+            >
+              <Text
+                style={[
+                  styles.specializationOptionText,
+                  specialization === option.id && styles.specializationOptionTextActive,
+                  { color: specialization === option.id ? 'white' : currentColors.text },
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* Theme Section */}
       <View style={[styles.section, { borderBottomColor: isDark ? '#333' : '#e0e0e0' }]}>
         <Text style={[styles.sectionTitle, { color: currentColors.text }]}>Appearance</Text>
@@ -197,7 +272,34 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  specializationOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  specializationOption: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  specializationOptionActive: {
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF6B6B',
+  },
+  specializationOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  specializationOptionTextActive: {
+    color: 'white',
   },
   themeOptions: {
     flexDirection: 'row',
