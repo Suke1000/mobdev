@@ -126,14 +126,16 @@ export const signup = async (req, res) => {
 
     const token = generateToken(newUser);
 
-
+    // Return user object with specialization included
     return res.status(201).json({
       message: 'User created successfully',
       user: {
         id: newUser.id,
         email: newUser.email,
         username: newUser.username,
-        specialization
+        displayName: newUser.display_name,
+        specialization: specialization,
+        createdAt: newUser.created_at
       },
       token
     });
@@ -194,8 +196,9 @@ export const login = async (req, res) => {
         id: user.id,
         email: user.email,
         username: user.username,
-        display_name: user.display_name,
-        specialization: spec?.specialization_type || null
+        displayName: user.display_name,
+        specialization: spec?.specialization_type || null,
+        createdAt: user.created_at
       },
       token
     });
