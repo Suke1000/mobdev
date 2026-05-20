@@ -104,7 +104,7 @@ export const getUserProfile = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { display_name, bio, weight, squat_pr, bench_pr, deadlift_pr } = req.body;
+    const { display_name, bio, weight, squat_pr, bench_pr, deadlift_pr, specialization } = req.body;
 
     // Verify token matches user
     if (req.user?.id !== id) {
@@ -123,6 +123,45 @@ export const updateUserProfile = async (req, res) => {
 
       if (userError) {
         return res.status(500).json({ error: 'Failed to update user' });
+      }
+    }
+
+    // Update specialization if provided
+    if (specialization) {
+      const VALID_SPECIALIZATIONS = ['SBL', 'Conventional', 'Powerlifting'];
+      
+      if (!VALID_SPECIALIZATIONS.includes(specialization)) {
+        return res.status(400).json({ error: 'Invalid specialization type' });
+      }
+
+      // Check if specialization record exists
+      const { data: existingSpec } = await supabase
+        .from('user_specialization')
+        .select('id')
+        .eq('user_id', id)
+        .single();
+
+      if (existingSpec) {
+        // Update existing specialization
+        const { error: specError } = await supabase
+          .from('user_specialization')
+          .update({ specialization_type: specialization })
+          .eq('user_id', id);
+
+        if (specError) {
+          console.error('Specialization update error:', specError);
+          return res.status(500).json({ error: 'Failed to update specialization' });
+        }
+      } else {
+        // Create new specialization record
+        const { error: specError } = await supabase
+          .from('user_specialization')
+          .insert([{ user_id: id, specialization_type: specialization }]);
+
+        if (specError) {
+          console.error('Specialization insert error:', specError);
+          return res.status(500).json({ error: 'Failed to set specialization' });
+        }
       }
     }
 
