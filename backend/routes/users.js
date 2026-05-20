@@ -135,11 +135,17 @@ export const updateUserProfile = async (req, res) => {
       }
 
       // Check if specialization record exists
-      const { data: existingSpec } = await supabase
+      const { data: existingSpecs, error: queryError } = await supabase
         .from('user_specialization')
         .select('id')
-        .eq('user_id', id)
-        .single();
+        .eq('user_id', id);
+
+      if (queryError) {
+        console.error('Specialization query error:', queryError);
+        return res.status(500).json({ error: 'Failed to check specialization' });
+      }
+
+      const existingSpec = existingSpecs && existingSpecs.length > 0;
 
       if (existingSpec) {
         // Update existing specialization
@@ -167,13 +173,19 @@ export const updateUserProfile = async (req, res) => {
 
     // Update or insert stats
     if (weight || squat_pr || bench_pr || deadlift_pr) {
-      const { data: existingStats } = await supabase
+      const { data: existingStats, error: statsQueryError } = await supabase
         .from('user_stats')
         .select('id')
-        .eq('user_id', id)
-        .single();
+        .eq('user_id', id);
 
-      if (existingStats) {
+      if (statsQueryError) {
+        console.error('Stats query error:', statsQueryError);
+        return res.status(500).json({ error: 'Failed to check stats' });
+      }
+
+      const hasExistingStats = existingStats && existingStats.length > 0;
+
+      if (hasExistingStats) {
         const { error: statsError } = await supabase
           .from('user_stats')
           .update({
