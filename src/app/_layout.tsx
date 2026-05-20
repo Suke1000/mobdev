@@ -1,16 +1,105 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import React from 'react';
-import { useColorScheme } from 'react-native';
+import React, { useEffect } from 'react';
+import { useColorScheme, ActivityIndicator, View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import AppTabs from '@/components/app-tabs';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import AuthScreens from '@/screens/auth/AuthScreens';
 
-export default function TabLayout() {
+// Import the user profile screen, post create screen, and chat screen
+import UserProfileScreen from './user-profile';
+import PostCreateScreen from './new-post';
+import ChatScreen from './chat';
+
+const Stack = createNativeStackNavigator();
+
+// Keep the splash screen visible while we fetch the token
+SplashScreen.preventAutoHideAsync();
+
+function RootLayoutContent() {
   const colorScheme = useColorScheme();
+  const { isLoading, isAuthenticated, restoreToken } = useAuth();
+  const [appReady, setAppReady] = React.useState(false);
+
+  useEffect(() => {
+    const prepare = async () => {
+      try {
+        await restoreToken();
+        setAppReady(true);
+      } catch (e) {
+        console.warn(e);
+        setAppReady(true);
+      } finally {
+        await SplashScreen.hideAsync();
+      }
+    };
+
+    prepare();
+  }, [restoreToken]);
+
+  if (isLoading || !appReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+      <ErrorBoundary>
+        <AnimatedSplashOverlay />
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!isAuthenticated ? (
+            <Stack.Screen name="auth">
+              {() => <AuthScreens onAuthComplete={() => {}} />}
+            </Stack.Screen>
+          ) : (
+            <>
+              <Stack.Screen name="main" component={AppTabs} />
+              <Stack.Screen
+                name="user-profile"
+                component={UserProfileScreen}
+                options={{
+                  presentation: 'modal',
+                  headerShown: true,
+                  headerTitle: 'Profile'
+                }}
+              />
+              <Stack.Screen
+                name="new-post"
+                component={PostCreateScreen}
+                options={{
+                  presentation: 'modal',
+                  headerShown: true,
+                  headerTitle: 'Create Post'
+                }}
+              />
+              <Stack.Screen
+                name="chat"
+                component={ChatScreen}
+                options={{
+                  headerShown: true,
+                  headerTitle: 'Chat'
+                }}
+              />
+            </>
+          )}
+        </Stack.Navigator>
+      </ErrorBoundary>
     </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootLayoutContent />
+    </AuthProvider>
   );
 }
