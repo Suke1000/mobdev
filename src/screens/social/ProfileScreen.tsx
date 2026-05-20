@@ -8,12 +8,13 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Colors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../services/api';
-import { User } from '../../types';
+import { User, SpecializationType } from '../../types';
 
 interface ProfileScreenProps {
   onLogout: () => void;
@@ -24,11 +25,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [showSpecModal, setShowSpecModal] = useState(false);
+  const [updatingSpec, setUpdatingSpec] = useState(false);
   const { user, logout, setUser } = useAuth();
   const navigation = useNavigation();
 
   // Use prop if provided, otherwise default to current user's profile
   const targetUserId: string | undefined = userIdProp;
+
+  const specs: SpecializationType[] = ['SBL', 'Conventional', 'Powerlifting'];
 
   // Fetch profile
   useEffect(() => {
@@ -169,6 +174,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
     }
   };
 
+  const handleSpecializationChange = async (newSpec: SpecializationType) => {
+    if (!profile?.id) return;
+
+    try {
+      setUpdatingSpec(true);
+      await api.updateUserProfile(profile.id, { specialization: newSpec });
+      setProfile({ ...profile, specialization: newSpec });
+      
+      // Update current user context if it's own profile
+      if (user?.id === profile.id) {
+        setUser({ ...user, specialization: newSpec });
+      }
+      
+      setShowSpecModal(false);
+      Alert.alert('Success', 'Specialization updated!');
+    } catch (error: any) {
+      console.error('Update specialization error:', error);
+      Alert.alert('Error', error.response?.data?.error || 'Failed to update specialization');
+    } finally {
+      setUpdatingSpec(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -213,14 +241,21 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
         </View>
       </View>
 
-      <View style={styles.specializationSection}>
+      <TouchableOpacity 
+        style={styles.specializationSection}
+        onPress={() => isOwnProfile && setShowSpecModal(true)}
+        disabled={!isOwnProfile}
+      >
         <Text style={styles.specializationLabel}>Lifting Specialization</Text>
         <View style={styles.specializationTagLarge}>
           <Text style={styles.specializationTextLarge}>
             {profile?.specialization || 'Not Set'}
           </Text>
         </View>
-      </View>
+        {isOwnProfile && (
+          <Text style={styles.editHint}>Tap to edit</Text>
+        )}
+      </TouchableOpacity>
 
       {profile?.stats && (
         <View style={styles.liftingStatsSection}>
@@ -282,6 +317,53 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
           </TouchableOpacity>
         </>
       )}
+
+      {/* Specialization Modal */}
+      <Modal
+        visible={showSpecModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowSpecModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Specialization</Text>
+            
+            <View style={styles.specOptions}>
+              {specs.map((spec) => (
+                <TouchableOpacity
+                  key={spec}
+                  style={[
+                    styles.specOption,
+                    profile?.specialization === spec && styles.specOptionSelected,
+                  ]}
+                  onPress={() => handleSpecializationChange(spec)}
+                  disabled={updatingSpec}
+                >
+                  <Text
+                    style={[
+                      styles.specOptionText,
+                      profile?.specialization === spec && styles.specOptionTextSelected,
+                    ]}
+                  >
+                    {spec}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowSpecModal(false)}
+              disabled={updatingSpec}
+            >
+              <Text style={styles.modalCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+
+            {updatingSpec && <ActivityIndicator size="large" color="#FF6B6B" style={styles.loadingIndicator} />}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -386,6 +468,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  editHint: {
+    fontSize: 10,
+    color: Colors.light.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   liftingStatsSection: {
     paddingHorizontal: 12,
     paddingVertical: 16,
@@ -443,6 +531,67 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.light.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    paddingBottom: 32,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.light.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  specOptions: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  specOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.light.backgroundSelected,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  specOptionSelected: {
+    backgroundColor: '#FF6B6B',
+    borderColor: '#FF5252',
+  },
+  specOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+    textAlign: 'center',
+  },
+  specOptionTextSelected: {
+    color: 'white',
+  },
+  modalCloseButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#999',
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingIndicator: {
+    marginTop: 16,
   },
 });
 
