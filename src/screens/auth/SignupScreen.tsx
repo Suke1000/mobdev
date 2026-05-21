@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { SpecializationType } from '../../types';
 
 interface SignupScreenProps {
@@ -32,7 +32,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
   const [selectedSpec, setSelectedSpec] = useState<SpecializationType | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Import useAuth at the function level to avoid circular dependency
   const { signup } = require('../../hooks/useAuth').useAuth();
 
   const handleSignup = async () => {
@@ -40,32 +39,25 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
     }
-
     if (password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
-
     if (!selectedSpec) {
       Alert.alert('Error', 'Please select your lifting specialization');
       return;
     }
-
     try {
       setLoading(true);
       await signup(email, password, username, selectedSpec);
       onSignupSuccess(selectedSpec);
       onSignupComplete();
     } catch (error: any) {
-      Alert.alert(
-        'Signup Failed',
-        error.response?.data?.error || 'Failed to create account'
-      );
+      Alert.alert('Signup Failed', error.response?.data?.error || 'Failed to create account');
     } finally {
       setLoading(false);
     }
@@ -74,153 +66,200 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
   const specs: SpecializationType[] = ['SBL', 'Conventional', 'Powerlifting'];
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join the PRboard Community</Text>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerEyebrow}>GET STARTED</Text>
+            <Text style={styles.headerTitle}>Create Account</Text>
+            <View style={styles.headerAccent} />
+            <Text style={styles.subtitle}>Join the PRboard Community</Text>
+          </View>
 
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={Colors.light.tabIconDefault}
-            value={email}
-            onChangeText={setEmail}
-            editable={!loading}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
-            placeholderTextColor={Colors.light.tabIconDefault}
-            value={username}
-            onChangeText={setUsername}
-            editable={!loading}
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={Colors.light.tabIconDefault}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!loading}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor={Colors.light.tabIconDefault}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            editable={!loading}
-          />
+          <View style={styles.form}>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>EMAIL</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#444"
+                value={email}
+                onChangeText={setEmail}
+                editable={!loading}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
 
-          <View style={styles.specSection}>
-            <Text style={styles.specLabel}>Lifting Specialization</Text>
-            <View style={styles.specButtons}>
-              {specs.map((spec) => (
-                <TouchableOpacity
-                  key={spec}
-                  style={[
-                    styles.specButton,
-                    selectedSpec === spec && styles.specButtonSelected,
-                  ]}
-                  onPress={() => setSelectedSpec(spec)}
-                  disabled={loading}
-                >
-                  <Text
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>USERNAME</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Choose a username"
+                placeholderTextColor="#444"
+                value={username}
+                onChangeText={setUsername}
+                editable={!loading}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>PASSWORD</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="At least 6 characters"
+                placeholderTextColor="#444"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Repeat your password"
+                placeholderTextColor="#444"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.specSection}>
+              <Text style={styles.inputLabel}>LIFTING SPECIALIZATION</Text>
+              <View style={styles.specButtons}>
+                {specs.map((spec) => (
+                  <TouchableOpacity
+                    key={spec}
                     style={[
-                      styles.specText,
-                      selectedSpec === spec && styles.specTextSelected,
+                      styles.specButton,
+                      selectedSpec === spec && styles.specButtonSelected,
                     ]}
+                    onPress={() => setSelectedSpec(spec)}
+                    disabled={loading}
+                    activeOpacity={0.8}
                   >
-                    {spec}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.specText,
+                        selectedSpec === spec && styles.specTextSelected,
+                      ]}
+                    >
+                      {spec}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSignup}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Sign Up 🚀</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={onLoginPress}>
+                <Text style={styles.linkText}>Login</Text>
+              </TouchableOpacity>
             </View>
           </View>
-
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSignup}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={onLoginPress}>
-              <Text style={styles.linkText}>Login</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#0F0F0F',
+  },
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingVertical: 32,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 40,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.light.text,
-    marginBottom: 8,
-    textAlign: 'center',
+  header: {
+    marginBottom: 28,
+  },
+  headerEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF4D4D',
+    letterSpacing: 2.5,
+    marginBottom: 6,
+  },
+  headerTitle: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  headerAccent: {
+    width: 40,
+    height: 3,
+    backgroundColor: '#FF4D4D',
+    borderRadius: 2,
+    marginTop: 8,
+    marginBottom: 10,
   },
   subtitle: {
-    fontSize: 16,
-    color: Colors.light.tabIconDefault,
-    marginBottom: 24,
-    textAlign: 'center',
+    fontSize: 14,
+    color: '#555',
+    fontWeight: '600',
   },
   form: {
     gap: 16,
   },
+  inputWrapper: {
+    gap: 6,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4D4D',
+    letterSpacing: 1.5,
+  },
   input: {
-    backgroundColor: Colors.light.tabIconSelected,
-    borderRadius: 8,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
-    color: Colors.light.text,
+    color: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#2A2A2A',
   },
   specSection: {
-    marginVertical: 8,
-  },
-  specLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 12,
+    gap: 10,
   },
   specButtons: {
     flexDirection: 'row',
@@ -228,50 +267,64 @@ const styles = StyleSheet.create({
   },
   specButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#2A2A2A',
     alignItems: 'center',
+    backgroundColor: '#1A1A1A',
   },
   specButtonSelected: {
-    borderColor: '#FF6B6B',
-    backgroundColor: '#FF6B6B',
+    borderColor: '#FF4D4D',
+    backgroundColor: '#FF4D4D',
+    shadowColor: '#FF4D4D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   specText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: Colors.light.text,
+    fontWeight: '700',
+    color: '#666',
   },
   specTextSelected: {
-    color: 'white',
+    color: '#FFFFFF',
   },
   button: {
-    backgroundColor: '#FF6B6B',
-    paddingVertical: 14,
-    borderRadius: 8,
+    backgroundColor: '#FF4D4D',
+    paddingVertical: 15,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
+    shadowColor: '#FF4D4D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: 4,
   },
   footerText: {
-    color: Colors.light.tabIconDefault,
+    color: '#555',
+    fontSize: 14,
   },
   linkText: {
-    color: '#FF6B6B',
-    fontWeight: '600',
+    color: '#FF4D4D',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
 
