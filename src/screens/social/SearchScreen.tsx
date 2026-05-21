@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import api from "../../services/api";
 import { User } from "../../types";
 
@@ -17,7 +17,6 @@ interface SearchScreenProps {
 }
 
 export const SearchScreen: React.FC<SearchScreenProps> = ({ onUserSelect }) => {
-  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,9 +40,9 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onUserSelect }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View style={styles.header}>
         <Text style={styles.headerEyebrow}>PRBOARD</Text>
         <Text style={styles.headerTitle}>Explore</Text>
         <View style={styles.headerAccent} />
@@ -121,7 +120,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onUserSelect }) => {
           ) : null
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -161,6 +160,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 16,
   },
   headerEyebrow: {
