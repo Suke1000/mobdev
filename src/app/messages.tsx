@@ -88,13 +88,6 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={{ padding: 12, backgroundColor: 'yellow', margin: 12, borderRadius: 8 }}
-        onPress={() => console.log('TOP BUTTON PRESSED')}
-      >
-        <Text>Test touch</Text>
-      </TouchableOpacity>
-
       <TextInput
         style={styles.searchInput}
         placeholder="Search conversations..."
