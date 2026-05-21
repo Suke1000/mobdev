@@ -1,22 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  View,
-  TextInput,
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
-  ActivityIndicator,
+  TextInput,
   TouchableOpacity,
-} from 'react-native';
-import api from '../../services/api';
-import { User } from '../../types';
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import api from "../../services/api";
+import { User } from "../../types";
 
 interface SearchScreenProps {
   onUserSelect: (user: User) => void;
 }
 
 export const SearchScreen: React.FC<SearchScreenProps> = ({ onUserSelect }) => {
-  const [query, setQuery] = useState('');
+  const insets = useSafeAreaInsets();
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -32,7 +34,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onUserSelect }) => {
       const data = await api.searchUsers(query);
       setResults(data);
     } catch (error) {
-      console.error('Search error:', error);
+      console.error("Search error:", error);
     } finally {
       setLoading(false);
     }
@@ -41,7 +43,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onUserSelect }) => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerEyebrow}>PRBOARD</Text>
         <Text style={styles.headerTitle}>Explore</Text>
         <View style={styles.headerAccent} />
@@ -61,12 +63,23 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onUserSelect }) => {
             returnKeyType="search"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setHasSearched(false); }}>
+            <TouchableOpacity
+              onPress={() => {
+                setQuery("");
+                setResults([]);
+                setHasSearched(false);
+              }}
+            >
               <Text style={styles.clearIcon}>✕</Text>
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch} disabled={loading} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.searchButton}
+          onPress={handleSearch}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
           <Text style={styles.searchButtonText}>Go</Text>
         </TouchableOpacity>
       </View>
@@ -91,13 +104,17 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onUserSelect }) => {
                 <>
                   <Text style={styles.emptyIcon}>😕</Text>
                   <Text style={styles.emptyText}>No athletes found</Text>
-                  <Text style={styles.emptySubtext}>Try a different username</Text>
+                  <Text style={styles.emptySubtext}>
+                    Try a different username
+                  </Text>
                 </>
               ) : (
                 <>
                   <Text style={styles.emptyIcon}>🏆</Text>
                   <Text style={styles.emptyText}>Find Athletes</Text>
-                  <Text style={styles.emptySubtext}>Search by username to discover lifters</Text>
+                  <Text style={styles.emptySubtext}>
+                    Search by username to discover lifters
+                  </Text>
                 </>
               )}
             </View>
@@ -113,13 +130,22 @@ interface UserSearchResultProps {
   onPress: () => void;
 }
 
-const UserSearchResult: React.FC<UserSearchResultProps> = ({ user, onPress }) => (
-  <TouchableOpacity style={styles.userItem} onPress={onPress} activeOpacity={0.7}>
+const UserSearchResult: React.FC<UserSearchResultProps> = ({
+  user,
+  onPress,
+}) => (
+  <TouchableOpacity
+    style={styles.userItem}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
     <View style={styles.userAvatar}>
       <Text style={styles.userAvatarEmoji}>💪</Text>
     </View>
     <View style={styles.userInfo}>
-      <Text style={styles.displayName}>{user.displayName || user.username}</Text>
+      <Text style={styles.displayName}>
+        {user.displayName || user.username}
+      </Text>
       <Text style={styles.handle}>@{user.username}</Text>
     </View>
     <View style={styles.arrowContainer}>
@@ -131,51 +157,50 @@ const UserSearchResult: React.FC<UserSearchResultProps> = ({ user, onPress }) =>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: "#0F0F0F",
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 16,
   },
   headerEyebrow: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#FF4D4D',
+    fontWeight: "800",
+    color: "#FF4D4D",
     letterSpacing: 2.5,
     marginBottom: 4,
   },
   headerTitle: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
     letterSpacing: -0.5,
   },
   headerAccent: {
     width: 40,
     height: 3,
-    backgroundColor: '#FF4D4D',
+    backgroundColor: "#FF4D4D",
     borderRadius: 2,
     marginTop: 6,
   },
   searchWrapper: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
-    alignItems: 'center',
-    marginTop: '3%',
+    alignItems: "center",
+    marginTop: "3%",
   },
   searchBar: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A1A',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1A1A1A",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: "#2A2A2A",
     gap: 10,
   },
   searchIcon: {
@@ -184,19 +209,19 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   clearIcon: {
     fontSize: 12,
-    color: '#555',
+    color: "#555",
     paddingHorizontal: 4,
   },
   searchButton: {
-    backgroundColor: '#FF4D4D',
+    backgroundColor: "#FF4D4D",
     borderRadius: 12,
     paddingHorizontal: 18,
     paddingVertical: 13,
-    shadowColor: '#FF4D4D',
+    shadowColor: "#FF4D4D",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -204,13 +229,13 @@ const styles = StyleSheet.create({
   },
   searchButtonText: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
     letterSpacing: 0.5,
   },
   loaderContainer: {
     paddingVertical: 40,
-    alignItems: 'center',
+    alignItems: "center",
   },
   listContent: {
     paddingHorizontal: 16,
@@ -218,25 +243,25 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   userItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A1A',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1A1A1A",
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: "#2A2A2A",
     gap: 12,
   },
   userAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#222',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#222",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1.5,
-    borderColor: '#2A2A2A',
+    borderColor: "#2A2A2A",
   },
   userAvatarEmoji: {
     fontSize: 22,
@@ -246,32 +271,32 @@ const styles = StyleSheet.create({
   },
   displayName: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
     marginBottom: 2,
   },
   handle: {
     fontSize: 12,
-    color: '#555',
-    fontWeight: '500',
+    color: "#555",
+    fontWeight: "500",
   },
   arrowContainer: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#222',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#222",
+    justifyContent: "center",
+    alignItems: "center",
   },
   arrow: {
     fontSize: 18,
-    color: '#FF4D4D',
-    fontWeight: '700',
+    color: "#FF4D4D",
+    fontWeight: "700",
     lineHeight: 22,
   },
   emptyContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 80,
     paddingHorizontal: 40,
   },
@@ -281,15 +306,15 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#555',
-    textAlign: 'center',
+    color: "#555",
+    textAlign: "center",
     lineHeight: 20,
   },
 });
