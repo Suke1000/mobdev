@@ -146,6 +146,7 @@ const styles = StyleSheet.create({
   topBar: {
     padding: 16,
     paddingBottom: 8,
+    marginTop: '3%',
   },
   createPostButton: {
     backgroundColor: '#FF6B6B',

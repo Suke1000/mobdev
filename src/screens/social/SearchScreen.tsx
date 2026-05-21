@@ -111,7 +111,8 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: '3%',
+    paddingBottom: 12,
     gap: 8,
     alignItems: 'center',
   },

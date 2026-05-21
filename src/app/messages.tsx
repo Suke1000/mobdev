@@ -162,7 +162,8 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     marginHorizontal: 16,
-    marginVertical: 12,
+    marginTop: '3%',
+    marginBottom: 12,
     backgroundColor: Colors.light.backgroundSelected,
     borderRadius: 8,
     paddingHorizontal: 16,
