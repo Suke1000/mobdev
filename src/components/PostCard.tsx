@@ -18,6 +18,8 @@ interface PostCardProps {
   onPostDeleted?: (postId: string) => void;
 }
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000';
+
 export const PostCard: React.FC<PostCardProps> = ({ post, onPostDeleted }) => {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -46,6 +48,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onPostDeleted }) => {
         },
       ]
     );
+  };
+
+  const getFullImageUrl = (url: string) => {
+    if (url.startsWith('http')) return url;
+    return `${API_URL}${url}`;
   };
 
   const handleAuthorPress = () => {
@@ -87,7 +94,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onPostDeleted }) => {
 
       {post.imageUrl && (
         <View style={styles.imageContainer}>
-          <Text style={styles.imagePlaceholder}>📷 Image</Text>
+          <Image 
+            source={{ uri: getFullImageUrl(post.imageUrl) }} 
+            style={styles.postImage}
+            resizeMode="cover"
+          />
         </View>
       )}
     </View>
@@ -144,15 +155,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   imageContainer: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#1A1A1A',
     borderRadius: 8,
-    height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: 250,
+    width: '100%',
+    overflow: 'hidden',
     marginBottom: 12,
   },
-  imagePlaceholder: {
-    fontSize: 48,
+  postImage: {
+    width: '100%',
+    height: '100%',
   },
 });
 
