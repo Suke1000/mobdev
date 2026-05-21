@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../services/api';
@@ -74,14 +75,14 @@ export const FeedScreen: React.FC = () => {
 
   if (loading && posts.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <ActivityIndicator size="large" color="#FF4D4D" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -128,7 +129,7 @@ export const FeedScreen: React.FC = () => {
           ) : null
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

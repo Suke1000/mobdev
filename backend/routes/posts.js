@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../config/supabase.js';
 import { verifyToken } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -10,7 +11,11 @@ const router = express.Router();
 // Setup multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/posts');
+    const uploadDir = 'uploads/posts';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
