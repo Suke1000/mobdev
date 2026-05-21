@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -16,55 +16,29 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
 import { Conversation, User } from '../types';
 
-interface ConversationItemProps {
-  conversation: Conversation;
-  onPress: (conversation: Conversation) => void;
-}
-
-const ConversationItem: React.FC<ConversationItemProps> = ({ conversation, onPress }) => {
-  return (
-    <TouchableOpacity style={styles.conversationItem} onPress={() => onPress(conversation)}>
-      <View style={styles.conversationAvatar}>
-        <Text style={styles.conversationAvatarText}>👤</Text>
-      </View>
-      <View style={styles.conversationInfo}>
-        <Text style={styles.conversationName}>{conversation.otherUser.username}</Text>
-        <Text style={styles.lastMessageTime}>
-          {new Date(conversation.lastMessageAt).toLocaleDateString()}
-        </Text>
-      </View>
-      <Text style={styles.arrow}>›</Text>
-    </TouchableOpacity>
-  );
-};
-
-interface ConversationWithUser extends Conversation {
-  isExistingConversation?: boolean;
-}
+type ConversationWithUser = Conversation;
 
 export default function MessagesScreen() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
+
   const [conversations, setConversations] = useState<ConversationWithUser[]>([]);
   const [mutualFollowers, setMutualFollowers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { isAuthenticated } = useAuth();
 
   const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
       const data = await api.getConversations();
       setConversations(data);
-      
-      // Also fetch mutual followers who we haven't messaged yet
+
       const mutuals = await api.getMutualFollowers();
-      // Filter out mutual followers who already have conversations
-      const existingConversationUserIds = data.map((c: Conversation) => c.otherUser.id);
-      const newMutuals = mutuals.filter((m: User) => !existingConversationUserIds.includes(m.id));
-      setMutualFollowers(newMutuals);
-    } catch (error) {
-      console.error('Conversations fetch error:', error);
+      const existingIds = data.map((c: Conversation) => c.otherUser.id);
+      setMutualFollowers(mutuals.filter((m: User) => !existingIds.includes(m.id)));
+    } catch (e) {
+      console.error('Conversations fetch error:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -73,14 +47,16 @@ export default function MessagesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (isAuthenticated) {
-        fetchConversations();
-      }
+      if (isAuthenticated) fetchConversations();
     }, [isAuthenticated, fetchConversations])
   );
 
   const handleConversationPress = (conversation: ConversationWithUser) => {
-    // Navigate to chat screen using expo-router
+    console.log('messages clicked:', {
+      userId: conversation.otherUser.id,
+      username: conversation.otherUser.username,
+    });
+
     router.push({
       pathname: '/chat',
       params: {
@@ -88,38 +64,6 @@ export default function MessagesScreen() {
         username: conversation.otherUser.username,
       },
     });
-  };
-
-  const handleStartConversation = (user: User) => {
-    Alert.prompt(
-      'Start Conversation',
-      `Send a message to ${user.username}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send',
-          onPress: async (message: string | undefined) => {
-            if (message && message.trim()) {
-              try {
-                await api.sendMessage(user.id, message.trim());
-                Alert.alert('Success', 'Message sent!');
-                fetchConversations(); // Refresh the list
-                // Navigate to chat after sending
-                router.push({
-                  pathname: '/chat',
-                  params: {
-                    userId: user.id,
-                    username: user.username,
-                  },
-                });
-              } catch (error) {
-                Alert.alert('Error', 'Failed to send message');
-              }
-            }
-          },
-        },
-      ]
-    );
   };
 
   const filteredConversations = conversations.filter(
@@ -144,6 +88,13 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={{ padding: 12, backgroundColor: 'yellow', margin: 12, borderRadius: 8 }}
+        onPress={() => console.log('TOP BUTTON PRESSED')}
+      >
+        <Text>Test touch</Text>
+      </TouchableOpacity>
+
       <TextInput
         style={styles.searchInput}
         placeholder="Search conversations..."
@@ -155,16 +106,32 @@ export default function MessagesScreen() {
       <FlatList
         data={filteredConversations}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ConversationItem conversation={item} onPress={handleConversationPress} />
-        )}
-        onRefresh={fetchConversations}
         refreshing={refreshing}
+        onRefresh={fetchConversations}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.conversationItem}
+            onPress={() => {
+              console.log('ConversationItem pressed:', item.otherUser?.id);
+              handleConversationPress(item);
+            }}
+          >
+            <View style={styles.conversationAvatar}>
+              <Text style={styles.conversationAvatarText}>👤</Text>
+            </View>
+            <View style={styles.conversationInfo}>
+              <Text style={styles.conversationName}>{item.otherUser.username}</Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
+        )}
         ListEmptyComponent={
           filteredMutualFollowers.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No conversations yet</Text>
-              <Text style={styles.emptySubtext}>Follow users who follow you back to start messaging</Text>
+              <Text style={styles.emptySubtext}>
+                Follow users who follow you back to start messaging
+              </Text>
             </View>
           ) : null
         }
@@ -176,13 +143,15 @@ export default function MessagesScreen() {
                 <TouchableOpacity
                   key={user.id}
                   style={styles.mutualFollowerItem}
-                  onPress={() => handleStartConversation(user)}
+                  onPress={() => {
+                    Alert.alert('Start Conversation', `Send a message to ${user.username}?`);
+                    router.push({
+                      pathname: '/chat',
+                      params: { userId: user.id, username: user.username },
+                    });
+                  }}
                 >
-                  <View style={styles.mutualFollowerAvatar}>
-                    <Text style={styles.mutualFollowerAvatarText}>👤</Text>
-                  </View>
                   <Text style={styles.mutualFollowerName}>{user.username}</Text>
-                  <Text style={styles.mutualFollowerArrow}>›</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -217,7 +186,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    gap: 12,
   },
   conversationAvatar: {
     width: 48,
@@ -226,78 +194,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
   },
-  conversationAvatarText: {
-    fontSize: 24,
-  },
-  conversationInfo: {
-    flex: 1,
-  },
+  conversationAvatarText: { fontSize: 24 },
+  conversationInfo: { flex: 1 },
   conversationName: {
     fontSize: 14,
     fontWeight: '700',
     color: Colors.light.text,
   },
-  lastMessageTime: {
-    fontSize: 11,
-    color: Colors.light.textSecondary,
-  },
-  arrow: {
-    fontSize: 20,
-    color: Colors.light.textSecondary,
-  },
-  emptyContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: Colors.light.textSecondary,
-  },
-  mutualFollowersSection: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-  },
+  arrow: { fontSize: 20, color: Colors.light.textSecondary },
+  emptyContainer: { justifyContent: 'center', alignItems: 'center', paddingVertical: 64 },
+  emptyText: { fontSize: 16, fontWeight: '600', color: Colors.light.text, marginBottom: 8 },
+  emptySubtext: { fontSize: 14, color: Colors.light.textSecondary },
+  mutualFollowersSection: { marginTop: 16, paddingHorizontal: 16 },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.light.textSecondary,
     marginBottom: 12,
   },
-  mutualFollowerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    gap: 12,
-  },
-  mutualFollowerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mutualFollowerAvatarText: {
-    fontSize: 20,
-  },
-  mutualFollowerName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  mutualFollowerArrow: {
-    fontSize: 20,
-    color: Colors.light.textSecondary,
-  },
+  mutualFollowerItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  mutualFollowerName: { fontSize: 14, fontWeight: '600', color: Colors.light.text },
 });

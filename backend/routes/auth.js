@@ -163,10 +163,20 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    // Get user by username
+    // Get user by username with specialization
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('*')
+      .select(`
+        id,
+        email,
+        username,
+        display_name,
+        bio,
+        profile_picture_url,
+        password_hash,
+        created_at,
+        user_specialization(specialization_type)
+      `)
       .eq('username', username)
       .single();
 
@@ -181,23 +191,18 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Get specialization
-    const { data: spec } = await supabase
-      .from('user_specialization')
-      .select('specialization_type')
-      .eq('user_id', user.id)
-      .single();
+    // Extract specialization from nested data
+    const specialization = user.user_specialization?.[0]?.specialization_type || null;
+    const { user_specialization, password_hash, ...userWithoutSensitive } = user;
 
     const token = generateToken(user);
 
     return res.status(200).json({
       message: 'Login successful',
       user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
+        ...userWithoutSensitive,
+        specialization,
         displayName: user.display_name,
-        specialization: spec?.specialization_type || null,
         createdAt: user.created_at
       },
       token

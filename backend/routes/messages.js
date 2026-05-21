@@ -211,7 +211,8 @@ export const getMessages = async (req, res) => {
         recipient_id,
         content,
         created_at,
-        read_at
+        read_at,
+        users!sender_id(id, username, display_name, profile_picture_url)
       `)
       .or(`and(sender_id.eq.${userId},recipient_id.eq.${conversationId}),and(sender_id.eq.${conversationId},recipient_id.eq.${userId})`)
       .order('created_at', { ascending: false })
@@ -222,7 +223,24 @@ export const getMessages = async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch messages' });
     }
 
-    return res.status(200).json({ messages: messages?.reverse() || [] });
+    // Transform the response to match frontend expectations
+    const transformedMessages = messages?.map(msg => ({
+      id: msg.id,
+      senderId: msg.sender_id,
+      recipientId: msg.recipient_id,
+      content: msg.content,
+      createdAt: msg.created_at,
+      readAt: msg.read_at,
+      sender: msg.users ? {
+        id: msg.users.id,
+        username: msg.users.username,
+        displayName: msg.users.display_name,
+        profilePictureUrl: msg.users.profile_picture_url
+      } : null
+    })) || [];
+
+    console.log('Transformed messages:', transformedMessages);
+    return res.status(200).json({ messages: transformedMessages.reverse() });
   } catch (error) {
     console.error('Get messages error:', error);
     return res.status(500).json({ error: 'Internal server error' });

@@ -68,6 +68,12 @@ export interface Message {
   content: string;
   createdAt: string;
   readAt?: string;
+  sender?: {
+    id: string;
+    username: string;
+    displayName: string;
+    profilePictureUrl?: string;
+  };
 }
 
 export interface Community {

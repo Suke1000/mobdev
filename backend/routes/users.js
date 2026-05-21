@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../config/supabase.js';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -113,7 +113,7 @@ export const updateUserProfile = async (req, res) => {
 
     // Update user info
     if (display_name || bio) {
-      const { error: userError } = await supabase
+      const { error: userError } = await supabaseAdmin
         .from('users')
         .update({
           ...(display_name && { display_name }),
@@ -122,6 +122,7 @@ export const updateUserProfile = async (req, res) => {
         .eq('id', id);
 
       if (userError) {
+        console.error('User update error:', userError);
         return res.status(500).json({ error: 'Failed to update user' });
       }
     }
@@ -134,8 +135,8 @@ export const updateUserProfile = async (req, res) => {
         return res.status(400).json({ error: 'Invalid specialization type' });
       }
 
-      // Check if specialization record exists
-      const { data: existingSpecs, error: queryError } = await supabase
+      // Use admin client for RLS bypass
+      const { data: existingSpecs, error: queryError } = await supabaseAdmin
         .from('user_specialization')
         .select('id')
         .eq('user_id', id);
@@ -149,7 +150,7 @@ export const updateUserProfile = async (req, res) => {
 
       if (existingSpec) {
         // Update existing specialization
-        const { error: specError } = await supabase
+        const { error: specError } = await supabaseAdmin
           .from('user_specialization')
           .update({ specialization_type: specialization })
           .eq('user_id', id);
@@ -160,7 +161,7 @@ export const updateUserProfile = async (req, res) => {
         }
       } else {
         // Create new specialization record
-        const { error: specError } = await supabase
+        const { error: specError } = await supabaseAdmin
           .from('user_specialization')
           .insert([{ user_id: id, specialization_type: specialization }]);
 
@@ -173,7 +174,7 @@ export const updateUserProfile = async (req, res) => {
 
     // Update or insert stats
     if (weight || squat_pr || bench_pr || deadlift_pr) {
-      const { data: existingStats, error: statsQueryError } = await supabase
+      const { data: existingStats, error: statsQueryError } = await supabaseAdmin
         .from('user_stats')
         .select('id')
         .eq('user_id', id);
@@ -186,7 +187,7 @@ export const updateUserProfile = async (req, res) => {
       const hasExistingStats = existingStats && existingStats.length > 0;
 
       if (hasExistingStats) {
-        const { error: statsError } = await supabase
+        const { error: statsError } = await supabaseAdmin
           .from('user_stats')
           .update({
             ...(weight && { weight }),
@@ -198,10 +199,11 @@ export const updateUserProfile = async (req, res) => {
           .eq('user_id', id);
 
         if (statsError) {
+          console.error('Stats update error:', statsError);
           return res.status(500).json({ error: 'Failed to update stats' });
         }
       } else {
-        const { error: statsError } = await supabase
+        const { error: statsError } = await supabaseAdmin
           .from('user_stats')
           .insert([{
             user_id: id,
@@ -212,6 +214,7 @@ export const updateUserProfile = async (req, res) => {
           }]);
 
         if (statsError) {
+          console.error('Stats insert error:', statsError);
           return res.status(500).json({ error: 'Failed to create stats' });
         }
       }

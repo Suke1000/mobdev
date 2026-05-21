@@ -115,6 +115,32 @@ class ApiService {
     }
   }
 
+  async getStoredUser(): Promise<User | null> {
+    try {
+      const userStr = await SecureStore.getItemAsync('authUser');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (error) {
+      console.error('Error retrieving user:', error);
+      return null;
+    }
+  }
+
+  async saveUser(user: User): Promise<void> {
+    try {
+      await SecureStore.setItemAsync('authUser', JSON.stringify(user));
+    } catch (error) {
+      console.error('Error saving user:', error);
+    }
+  }
+
+  async deleteStoredUser(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync('authUser').catch(() => {});
+    } catch (error) {
+      console.error('Error clearing user:', error);
+    }
+  }
+
   // User methods
   async searchUsers(query: string): Promise<User[]> {
     const response = await this.client.get('/users/search', {

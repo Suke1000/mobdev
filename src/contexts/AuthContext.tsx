@@ -25,6 +25,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const handleSetUser = useCallback((newUser: User | null) => {
+    setUser(newUser);
+    if (newUser) {
+      api.saveUser(newUser).catch(err => console.error('Error saving user:', err));
+    } else {
+      api.deleteStoredUser().catch(err => console.error('Error deleting user:', err));
+    }
+  }, []);
+
   // Restore token on app launch
   const restoreToken = useCallback(async () => {
     try {
@@ -32,7 +41,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const storedToken = await api.getStoredToken();
       if (storedToken) {
         setToken(storedToken);
-        // TODO: Fetch user profile with token to verify it's still valid
+        const storedUser = await api.getStoredUser();
+        if (storedUser) {
+          setUser(storedUser);
+        }
+        console.log('Token and User restored successfully');
       }
     } catch (error) {
       console.error('Token restore error:', error);
@@ -52,6 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const response: AuthResponse = await api.signup(email, password, username, specialization);
         setUser(response.user);
         setToken(response.token);
+        await api.saveUser(response.user);
       } catch (error) {
         console.error('Signup error:', error);
         throw error;
@@ -63,8 +77,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = useCallback(async (username: string, password: string) => {
     try {
       const response: AuthResponse = await api.login(username, password);
+      // Ensure specialization is included in user object
       setUser(response.user);
       setToken(response.token);
+      await api.saveUser(response.user);
+      console.log('Login successful, user specialization:', response.user.specialization);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -74,6 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       await api.logout();
+      await api.deleteStoredUser();
       setUser(null);
       setToken(null);
     } catch (error) {
@@ -91,7 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     restoreToken,
-    setUser,
+    setUser: handleSetUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -10,41 +10,52 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
 import { Colors } from '../constants/theme';
 import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
-import { Message, User } from '../types';
+import { Message } from '../types';
 
-interface MessageItemProps {
-  message: Message;
-  currentUserId: string;
-}
-
-const MessageItem: React.FC<MessageItemProps> = ({ message, currentUserId }) => {
-  const isOwnMessage = message.senderId === currentUserId;
+const MessageItem: React.FC<{ 
+  message: Message; 
+  currentUserId?: string; 
+}> = ({ message, currentUserId }) => {
+  const isOwnMessage = currentUserId ? message.senderId === currentUserId : false;
+  
+  // Get sender's username from message.sender object with fallbacks
+  const senderName = message.sender?.username || message.sender?.displayName || 'User';
 
   return (
     <View style={[
       styles.messageItem,
       isOwnMessage ? styles.ownMessage : styles.otherMessage
     ]}>
+      <View style={styles.messageHeader}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>👤</Text>
+        </View>
+        <Text style={[
+          styles.senderName,
+          isOwnMessage ? styles.ownSenderName : styles.otherSenderName
+        ]}>
+          {senderName}
+        </Text>
+      </View>
       <Text style={[
         styles.messageText,
         isOwnMessage ? styles.ownMessageText : styles.otherMessageText
       ]}>
         {message.content}
       </Text>
-      <Text style={styles.messageTime}>
-        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-      </Text>
     </View>
   );
 };
 
 export default function ChatScreen() {
-  const { userId, username } = useLocalSearchParams<{ userId: string; username: string }>();
-  const router = useRouter();
+  const route = useRoute<any>();
+  const { userId, username } = route.params || {};
+
+  const resolvedUserId = Array.isArray(userId) ? userId[0] : userId;
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -54,28 +65,34 @@ export default function ChatScreen() {
 
   // Note: Header title is set via _layout.tsx route options
 
+  useEffect(() => {
+    console.log('Chat params debug:', { userId, username });
+  }, [userId, username]);
+
   const fetchMessages = useCallback(async () => {
+    if (!resolvedUserId) return;
     try {
       setLoading(true);
-      const data = await api.getMessages(userId);
+      const data = await api.getMessages(resolvedUserId as string);
       setMessages(data);
     } catch (error) {
       console.error('Messages fetch error:', error);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [resolvedUserId]);
 
   useEffect(() => {
     fetchMessages();
-  }, [fetchMessages]);
+  }, [fetchMessages, resolvedUserId]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return;
 
     try {
+      if (!resolvedUserId) return;
       setSending(true);
-      await api.sendMessage(userId, newMessage.trim());
+      await api.sendMessage(resolvedUserId, newMessage.trim());
       setNewMessage('');
       await fetchMessages();
       
@@ -101,21 +118,27 @@ export default function ChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
       keyboardVerticalOffset={80}
+      enabled={true}
     >
       <FlatList
         ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <MessageItem message={item} currentUserId={user?.id || ''} />
+          <MessageItem 
+            message={item} 
+            currentUserId={user?.id}
+          />
         )}
         contentContainerStyle={styles.messagesList}
+        scrollEnabled={true}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
       />
 
-      <View style={styles.inputContainer}>
+      <View style={styles.inputContainerWrapper} pointerEvents="box-none">
+        <View style={styles.inputContainer} pointerEvents="box-none">
         <TextInput
           style={styles.input}
           placeholder="Type a message..."
@@ -123,6 +146,8 @@ export default function ChatScreen() {
           value={newMessage}
           onChangeText={setNewMessage}
           multiline
+          editable={true}
+          pointerEvents="auto"
         />
         <TouchableOpacity
           style={[styles.sendButton, sending && styles.sendButtonDisabled]}
@@ -133,6 +158,7 @@ export default function ChatScreen() {
             {sending ? '...' : 'Send'}
           </Text>
         </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -178,22 +204,41 @@ const styles = StyleSheet.create({
   otherMessageText: {
     color: Colors.light.text,
   },
-  messageTime: {
-    fontSize: 10,
-    color: 'rgba(0,0,0,0.5)',
-    marginTop: 4,
-    textAlign: 'right',
-  },
-  inputContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  messageHeader: {
     flexDirection: 'row',
-    padding: 12,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  avatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  avatarText: {
+    fontSize: 12,
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  ownSenderName: {
+    color: 'rgba(255,255,255,0.9)',
+  },
+  otherSenderName: {
+    color: Colors.light.text,
+  },
+  inputContainerWrapper: {
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    padding: 12,
     alignItems: 'flex-end',
   },
   input: {
