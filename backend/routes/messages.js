@@ -215,7 +215,7 @@ export const getMessages = async (req, res) => {
         users!sender_id(id, username, display_name, profile_picture_url)
       `)
       .or(`and(sender_id.eq.${userId},recipient_id.eq.${conversationId}),and(sender_id.eq.${conversationId},recipient_id.eq.${userId})`)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -240,7 +240,7 @@ export const getMessages = async (req, res) => {
     })) || [];
 
     console.log('Transformed messages:', transformedMessages);
-    return res.status(200).json({ messages: transformedMessages.reverse() });
+    return res.status(200).json({ messages: transformedMessages });
   } catch (error) {
     console.error('Get messages error:', error);
     return res.status(500).json({ error: 'Internal server error' });

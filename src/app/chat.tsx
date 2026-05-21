@@ -134,7 +134,7 @@ export default function ChatScreen() {
         )}
         contentContainerStyle={styles.messagesList}
         scrollEnabled={true}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
       />
 
       <View style={styles.inputContainerWrapper} pointerEvents="box-none">
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     padding: 16,
-    paddingBottom: 80,
+    paddingTop: 10,
   },
   messageItem: {
     maxWidth: '80%',
@@ -235,10 +235,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+    paddingBottom: '3%',
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 8,
+    paddingHorizontal: 12,
     alignItems: 'flex-end',
   },
   input: {
