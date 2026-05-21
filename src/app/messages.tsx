@@ -80,21 +80,31 @@ export default function MessagesScreen() {
 
   if (loading && conversations.length === 0) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF4D4D" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search conversations..."
-        placeholderTextColor={Colors.light.textSecondary}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Messages</Text>
+        <View style={styles.headerAccent} />
+      </View>
+
+      {/* Search */}
+      <View style={styles.searchWrapper}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search conversations..."
+          placeholderTextColor="#555"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
 
       <FlatList
         data={filteredConversations}
@@ -108,19 +118,29 @@ export default function MessagesScreen() {
               console.log('ConversationItem pressed:', item.otherUser?.id);
               handleConversationPress(item);
             }}
+            activeOpacity={0.7}
           >
-            <View style={styles.conversationAvatar}>
-              <Text style={styles.conversationAvatarText}>👤</Text>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatarInner}>
+                <Text style={styles.avatarEmoji}>💪</Text>
+              </View>
+              <View style={styles.onlineDot} />
             </View>
             <View style={styles.conversationInfo}>
-              <Text style={styles.conversationName}>{item.otherUser.username}</Text>
+              <Text style={styles.conversationName}>
+                {item.otherUser.displayName || item.otherUser.username}
+              </Text>
+              <Text style={styles.conversationHandle}>@{item.otherUser.username}</Text>
             </View>
-            <Text style={styles.arrow}>›</Text>
+            <View style={styles.arrowContainer}>
+              <Text style={styles.arrow}>›</Text>
+            </View>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           filteredMutualFollowers.length === 0 ? (
             <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>💬</Text>
               <Text style={styles.emptyText}>No conversations yet</Text>
               <Text style={styles.emptySubtext}>
                 Follow users who follow you back to start messaging
@@ -130,12 +150,17 @@ export default function MessagesScreen() {
         }
         ListFooterComponent={
           filteredMutualFollowers.length > 0 ? (
-            <View style={styles.mutualFollowersSection}>
-              <Text style={styles.sectionTitle}>Mutual Followers - Tap to Message</Text>
+            <View style={styles.mutualSection}>
+              <View style={styles.sectionDivider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.sectionTitle}>MUTUAL FOLLOWERS</Text>
+                <View style={styles.dividerLine} />
+              </View>
               {filteredMutualFollowers.map((user) => (
                 <TouchableOpacity
                   key={user.id}
-                  style={styles.mutualFollowerItem}
+                  style={styles.mutualItem}
+                  activeOpacity={0.7}
                   onPress={() => {
                     Alert.alert('Start Conversation', `Send a message to ${user.username}?`);
                     router.push({
@@ -144,7 +169,16 @@ export default function MessagesScreen() {
                     });
                   }}
                 >
-                  <Text style={styles.mutualFollowerName}>{user.username}</Text>
+                  <View style={styles.mutualAvatar}>
+                    <Text style={styles.avatarEmoji}>💪</Text>
+                  </View>
+                  <View style={styles.conversationInfo}>
+                    <Text style={styles.conversationName}>{user.displayName || user.username}</Text>
+                    <Text style={styles.conversationHandle}>@{user.username}</Text>
+                  </View>
+                  <View style={styles.newBadge}>
+                    <Text style={styles.newBadgeText}>MSG</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -158,56 +192,192 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: '#0F0F0F',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F0F0F',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  headerAccent: {
+    width: 40,
+    height: 3,
+    backgroundColor: '#FF4D4D',
+    borderRadius: 2,
+    marginTop: 6,
+  },
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: '3%',
+    marginBottom: 16,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  searchIcon: {
+    fontSize: 14,
+    marginRight: 10,
   },
   searchInput: {
-    marginHorizontal: 16,
-    marginTop: '3%',
-    marginBottom: 12,
-    backgroundColor: Colors.light.backgroundSelected,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: Colors.light.text,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    flex: 1,
+    fontSize: 15,
+    color: '#FFFFFF',
   },
   conversationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#1A1A1A',
   },
-  conversationAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f0f0f0',
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 14,
+  },
+  avatarInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#1E1E1E',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#2A2A2A',
   },
-  conversationAvatarText: { fontSize: 24 },
-  conversationInfo: { flex: 1 },
+  avatarEmoji: {
+    fontSize: 22,
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#4CAF50',
+    borderWidth: 2,
+    borderColor: '#0F0F0F',
+  },
+  conversationInfo: {
+    flex: 1,
+  },
   conversationName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: Colors.light.text,
+    color: '#FFFFFF',
+    marginBottom: 2,
   },
-  arrow: { fontSize: 20, color: Colors.light.textSecondary },
-  emptyContainer: { justifyContent: 'center', alignItems: 'center', paddingVertical: 64 },
-  emptyText: { fontSize: 16, fontWeight: '600', color: Colors.light.text, marginBottom: 8 },
-  emptySubtext: { fontSize: 14, color: Colors.light.textSecondary },
-  mutualFollowersSection: { marginTop: 16, paddingHorizontal: 16 },
-  sectionTitle: {
+  conversationHandle: {
+    fontSize: 12,
+    color: '#555',
+    fontWeight: '500',
+  },
+  arrowContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1A1A1A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrow: {
+    fontSize: 18,
+    color: '#FF4D4D',
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  emptyContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtext: {
     fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.textSecondary,
-    marginBottom: 12,
+    color: '#555',
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  mutualFollowerItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  mutualFollowerName: { fontSize: 14, fontWeight: '600', color: Colors.light.text },
+  mutualSection: {
+    marginTop: 8,
+    paddingBottom: 20,
+  },
+  sectionDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginVertical: 16,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#2A2A2A',
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4D4D',
+    letterSpacing: 1.5,
+  },
+  mutualItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A1A1A',
+  },
+  mutualAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#1E1E1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2A2A2A',
+    marginRight: 14,
+  },
+  newBadge: {
+    backgroundColor: '#FF4D4D',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  newBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
 });

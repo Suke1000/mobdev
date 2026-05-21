@@ -9,9 +9,9 @@ import {
   Alert,
   Image,
   Modal,
+  FlatList,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Colors } from '../../constants/theme';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../services/api';
 import { User, SpecializationType } from '../../types';
@@ -27,6 +27,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
   const [isFollowing, setIsFollowing] = useState(false);
   const [showSpecModal, setShowSpecModal] = useState(false);
   const [updatingSpec, setUpdatingSpec] = useState(false);
+  
+  // States for followers/following lists
+  const [showUsersListModal, setShowUsersListModal] = useState(false);
+  const [listType, setListType] = useState<'followers' | 'following'>('followers');
+  const [usersList, setUsersList] = useState<User[]>([]);
+  const [loadingUsersList, setLoadingUsersList] = useState(false);
+  
   const { user, logout, setUser } = useAuth();
   const navigation = useNavigation();
 
@@ -174,6 +181,42 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
     }
   };
 
+  const handleShowFollowers = async () => {
+    const idToFetch = profile?.id;
+    if (!idToFetch) return;
+    
+    setListType('followers');
+    setShowUsersListModal(true);
+    setLoadingUsersList(true);
+    try {
+      const followers = await api.getFollowers(idToFetch);
+      setUsersList(followers);
+    } catch (e) {
+      console.error('Error fetching followers:', e);
+      Alert.alert('Error', 'Failed to fetch followers');
+    } finally {
+      setLoadingUsersList(false);
+    }
+  };
+
+  const handleShowFollowing = async () => {
+    const idToFetch = profile?.id;
+    if (!idToFetch) return;
+    
+    setListType('following');
+    setShowUsersListModal(true);
+    setLoadingUsersList(true);
+    try {
+      const following = await api.getFollowing(idToFetch);
+      setUsersList(following);
+    } catch (e) {
+      console.error('Error fetching following:', e);
+      Alert.alert('Error', 'Failed to fetch following');
+    } finally {
+      setLoadingUsersList(false);
+    }
+  };
+
   const handleSpecializationChange = async (newSpec: SpecializationType) => {
     if (!profile?.id) return;
 
@@ -199,8 +242,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF4D4D" />
       </View>
     );
   }
@@ -209,6 +252,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header */}
+      <View style={styles.pageHeader}>
+        <Text style={styles.headerEyebrow}>PRBOARD</Text>
+        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={styles.headerAccent} />
+      </View>
+
       <View style={styles.header}>
         <View style={styles.profileImagePlaceholder}>
           <Text style={styles.profileImageText}>👤</Text>
@@ -218,6 +268,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
           <TouchableOpacity
             style={[styles.button, isFollowing ? styles.followingButton : styles.followButton]}
             onPress={handleToggleFollow}
+            activeOpacity={0.85}
           >
             <Text style={styles.buttonText}>{isFollowing ? 'Following' : 'Follow'}</Text>
           </TouchableOpacity>
@@ -231,14 +282,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
       )}
 
       <View style={styles.statsSection}>
-        <View style={styles.statItem}>
+        <TouchableOpacity style={styles.statItem} onPress={handleShowFollowers} activeOpacity={0.7}>
           <Text style={styles.statValue}>{profile?.followerCount || 0}</Text>
           <Text style={styles.statLabel}>Followers</Text>
-        </View>
-        <View style={styles.statItem}>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.statItem} onPress={handleShowFollowing} activeOpacity={0.7}>
           <Text style={styles.statValue}>{profile?.followingCount || 0}</Text>
           <Text style={styles.statLabel}>Following</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity 
@@ -293,6 +344,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
           onPress={() => {
             (navigation as any).navigate('admin');
           }}
+          activeOpacity={0.85}
         >
           <Text style={styles.buttonText}>⚙️ Admin Panel</Text>
         </TouchableOpacity>
@@ -305,6 +357,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
             onPress={() => {
               (navigation as any).navigate('settings');
             }}
+            activeOpacity={0.85}
           >
             <Text style={styles.buttonText}>⚙️ Settings</Text>
           </TouchableOpacity>
@@ -312,6 +365,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
           <TouchableOpacity
             style={[styles.button, styles.logoutButton]}
             onPress={handleLogout}
+            activeOpacity={0.85}
           >
             <Text style={styles.buttonText}>🚪 Logout</Text>
           </TouchableOpacity>
@@ -360,7 +414,68 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
               <Text style={styles.modalCloseButtonText}>Close</Text>
             </TouchableOpacity>
 
-            {updatingSpec && <ActivityIndicator size="large" color="#FF6B6B" style={styles.loadingIndicator} />}
+            {updatingSpec && <ActivityIndicator size="large" color="#FF4D4D" style={styles.loadingIndicator} />}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Users List Modal (Followers/Following) */}
+      <Modal
+        visible={showUsersListModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowUsersListModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <Text style={styles.modalTitle}>
+              {listType === 'followers' ? 'Followers' : 'Following'}
+            </Text>
+            
+            {loadingUsersList ? (
+              <ActivityIndicator size="large" color="#FF4D4D" style={{ marginVertical: 20 }} />
+            ) : (
+              <FlatList
+                data={usersList}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.userItem}
+                    onPress={() => {
+                      setShowUsersListModal(false);
+                      // Navigate to user profile
+                      (navigation as any).navigate('user-profile', { userId: item.id });
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.userAvatar}>
+                      <Text style={styles.userAvatarEmoji}>💪</Text>
+                    </View>
+                    <View style={styles.userInfo}>
+                      <Text style={styles.displayName}>{item.displayName || item.username}</Text>
+                      <Text style={styles.handle}>@{item.username}</Text>
+                    </View>
+                    <Text style={styles.arrow}>›</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <View style={styles.emptyListContainer}>
+                    <Text style={styles.emptyListText}>
+                      No {listType} yet
+                    </Text>
+                  </View>
+                }
+                style={{ width: '100%' }}
+                showsVerticalScrollIndicator={false}
+              />
+            )}
+
+            <TouchableOpacity
+              style={[styles.modalCloseButton, { marginTop: 16 }]}
+              onPress={() => setShowUsersListModal(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -371,227 +486,368 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: '#0F0F0F',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F0F0F',
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 24,
     gap: 16,
   },
+  // PRBOARD page header
+  pageHeader: {
+    marginBottom: 4,
+  },
+  headerEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF4D4D',
+    letterSpacing: 2.5,
+    marginBottom: 4,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  headerAccent: {
+    width: 40,
+    height: 3,
+    backgroundColor: '#FF4D4D',
+    borderRadius: 2,
+    marginTop: 6,
+  },
+  // Profile card
   header: {
     alignItems: 'center',
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingVertical: 24,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
   },
   profileImagePlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#2A2A2A',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#FF4D4D',
   },
   profileImageText: {
     fontSize: 48,
   },
   username: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.light.text,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
-  specializationTag: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  specializationText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  // Bio
   bioSection: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
   },
   bio: {
     fontSize: 14,
-    color: Colors.light.text,
+    color: '#AAAAAA',
     lineHeight: 20,
   },
+  // Follower stats
   statsSection: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 16,
-    backgroundColor: Colors.light.backgroundSelected,
-    borderRadius: 8,
+    paddingVertical: 20,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
   },
-
   statItem: {
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.light.text,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   statLabel: {
-    fontSize: 12,
-    color: Colors.light.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#555',
     marginTop: 4,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
+  // Specialization
   specializationSection: {
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-    backgroundColor: Colors.light.backgroundSelected,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
     alignItems: 'center',
   },
   specializationLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.light.textSecondary,
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4D4D',
+    marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
   },
   specializationTagLarge: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF4D4D',
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingVertical: 10,
+    borderRadius: 10,
+    shadowColor: '#FF4D4D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   specializationTextLarge: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   editHint: {
     fontSize: 10,
-    color: Colors.light.textSecondary,
-    marginTop: 8,
+    color: '#444',
+    marginTop: 10,
     fontStyle: 'italic',
   },
+  // Lifting stats
   liftingStatsSection: {
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-    backgroundColor: Colors.light.backgroundSelected,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
   },
-
   liftingStatsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
-    marginBottom: 12,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF4D4D',
+    marginBottom: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#2A2A2A',
   },
   statKey: {
     fontSize: 14,
-    color: Colors.light.textSecondary,
-
+    color: '#666',
+    fontWeight: '600',
   },
   statValueText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: Colors.light.text,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
+  // Buttons
   button: {
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 12,
     paddingHorizontal: 16,
   },
   followButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF4D4D',
+    marginTop: 12,
+    shadowColor: '#FF4D4D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
   },
   followingButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#1A1A1A',
+    marginTop: 12,
+    borderWidth: 1.5,
+    borderColor: '#2A2A2A',
   },
   settingsButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1.5,
+    borderColor: '#2A2A2A',
   },
   adminButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1.5,
+    borderColor: '#FF4D4D',
   },
   logoutButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1.5,
+    borderColor: '#333',
   },
   buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  // Modal styles
+  // Specialization tag (small, unused in current JSX but kept for compat)
+  specializationTag: {
+    backgroundColor: '#FF4D4D',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  specializationText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: '#1A1A1A',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 24,
-    paddingBottom: 32,
+    paddingBottom: 36,
+    borderTopWidth: 1,
+    borderColor: '#2A2A2A',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.light.text,
-    marginBottom: 16,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF4D4D',
+    marginBottom: 20,
     textAlign: 'center',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   specOptions: {
-    gap: 12,
+    gap: 10,
     marginBottom: 20,
   },
   specOption: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.light.backgroundSelected,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderRadius: 12,
+    backgroundColor: '#0F0F0F',
+    borderWidth: 1.5,
+    borderColor: '#2A2A2A',
   },
   specOptionSelected: {
-    backgroundColor: '#FF6B6B',
-    borderColor: '#FF5252',
+    backgroundColor: '#FF4D4D',
+    borderColor: '#FF4D4D',
+    shadowColor: '#FF4D4D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   specOptionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.text,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#AAAAAA',
     textAlign: 'center',
   },
   specOptionTextSelected: {
-    color: 'white',
+    color: '#FFFFFF',
   },
   modalCloseButton: {
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#999',
+    borderRadius: 12,
+    backgroundColor: '#0F0F0F',
+    borderWidth: 1.5,
+    borderColor: '#2A2A2A',
     alignItems: 'center',
   },
   modalCloseButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#555',
+    fontSize: 15,
+    fontWeight: '700',
   },
   loadingIndicator: {
     marginTop: 16,
+  },
+  // User list items (for followers/following modal)
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F0F0F',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    width: '100%',
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#222',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    marginRight: 12,
+  },
+  userAvatarEmoji: {
+    fontSize: 18,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  displayName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  handle: {
+    fontSize: 12,
+    color: '#555',
+    fontWeight: '500',
+  },
+  arrow: {
+    fontSize: 18,
+    color: '#FF4D4D',
+    fontWeight: '700',
+  },
+  emptyListContainer: {
+    paddingVertical: 30,
+    alignItems: 'center',
+  },
+  emptyListText: {
+    color: '#555',
+    fontSize: 14,
   },
 });
 
