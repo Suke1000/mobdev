@@ -8,20 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
-// Setup multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = 'uploads/posts';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
+// Setup multer for memory storage (for Supabase upload)
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage,
@@ -52,9 +40,30 @@ export const createPost = async (req, res) => {
 
     let imageUrl = null;
 
-    // Handle image upload if present
+    // Handle image upload to Supabase Storage if present
     if (req.file) {
-      imageUrl = `/uploads/posts/${req.file.filename}`;
+      const fileExt = path.extname(req.file.originalname);
+      const fileName = `${uuidv4()}${fileExt}`;
+      const filePath = `posts/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        .from('post-images')
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Supabase storage upload error:', uploadError);
+        return res.status(500).json({ error: 'Failed to upload image', details: uploadError.message });
+      }
+
+      // Get public URL
+      const { data: publicUrlData } = supabaseAdmin.storage
+        .from('post-images')
+        .getPublicUrl(filePath);
+        
+      imageUrl = publicUrlData.publicUrl;
     }
 
     const { data: post, error } = await supabaseAdmin
