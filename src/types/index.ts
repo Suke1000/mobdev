@@ -42,6 +42,9 @@ export interface Post {
   communityId?: string;
   createdAt: string;
   updatedAt: string;
+  likeCount: number;       // ADD THIS
+  commentCount: number;    // ADD THIS
+  isLiked: boolean;        // ADD THIS
   user?: {
     id: string;
     username: string;

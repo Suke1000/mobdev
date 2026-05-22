@@ -6,19 +6,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
-const SPECIALIZATION_TYPES = ['SBL', 'Conventional', 'Powerlifting'];
-const COMMUNITY_IDS = {
-  'SBL': 'sbl-community',
-  'Conventional': 'conventional-community',
-  'Powerlifting': 'powerlifting-community'
-};
-
 // Helper: Generate JWT token
 const generateToken = (user) => {
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is missing from environment');
   }
-
   return jwt.sign(
     { id: user.id, email: user.email, username: user.username },
     process.env.JWT_SECRET,
@@ -26,19 +18,17 @@ const generateToken = (user) => {
   );
 };
 
-
 // POST /auth/signup
 export const signup = async (req, res) => {
   try {
-    const { email, password, username, specialization } = req.body;
+    const { email, password, username } = req.body;
 
-    // Validate input
-    if (!email || !password || !username || !specialization) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!email || !password || !username) {
+      return res.status(400).json({ error: 'Email, password, and username are required' });
     }
 
-    if (!SPECIALIZATION_TYPES.includes(specialization)) {
-      return res.status(400).json({ error: 'Invalid specialization type' });
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     // Check if username already exists
@@ -46,87 +36,46 @@ export const signup = async (req, res) => {
       .from('users')
       .select('id')
       .eq('username', username)
-      .single();
-
+      .maybeSingle();
 
     if (existingUser) {
       return res.status(409).json({ error: 'Username already taken' });
     }
 
-    // Hash password
+    // Check if email already exists
+    const { data: existingEmail } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingEmail) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const userId = uuidv4();
 
-    // Create user in database
     const { data: newUser, error: userError } = await supabaseAdmin
       .from('users')
-      .insert([
-
-        {
-          id: userId,
-          email,
-          username,
-          password_hash: hashedPassword,
-          display_name: username,
-          created_at: new Date().toISOString()
-        }
-      ])
+      .insert([{
+        id: userId,
+        email,
+        username,
+        password_hash: hashedPassword,
+        display_name: username,
+        created_at: new Date().toISOString()
+      }])
       .select()
       .single();
 
-    if (userError) {
-      console.error('Signup user insert error:', {
-        message: userError.message,
-        details: userError.details,
-        hint: userError.hint,
-        code: userError.code,
-      });
-      return res.status(500).json({ error: 'Failed to create user', details: userError.message });
-    }
-
-    if (!newUser) {
-      console.error('Signup user insert returned no data');
-      return res.status(500).json({ error: 'Failed to create user' });
-    }
-
-    // Add user specialization
-    const { error: specError } = await supabaseAdmin
-      .from('user_specialization')
-      .insert([{ user_id: userId, specialization_type: specialization }]);
-
-    if (specError) {
-      console.error('Signup specialization insert error:', {
-        message: specError.message,
-        details: specError.details,
-        hint: specError.hint,
-        code: specError.code,
-      });
-    }
-
-    // Auto-join community
-    const communityId = COMMUNITY_IDS[specialization];
-    const { error: communityError } = await supabaseAdmin
-      .from('user_communities')
-      .insert([
-        {
-          user_id: userId,
-          community_id: communityId,
-          joined_at: new Date().toISOString()
-        }
-      ]);
-
-    if (communityError) {
-      console.error('Signup community join error:', {
-        message: communityError.message,
-        details: communityError.details,
-        hint: communityError.hint,
-        code: communityError.code,
-      });
+    if (userError || !newUser) {
+      console.error('Signup user insert error:', userError);
+      return res.status(500).json({ error: 'Failed to create user', details: userError?.message });
     }
 
     const token = generateToken(newUser);
 
-    // Return user object with specialization included
     return res.status(201).json({
       message: 'User created successfully',
       user: {
@@ -134,25 +83,15 @@ export const signup = async (req, res) => {
         email: newUser.email,
         username: newUser.username,
         displayName: newUser.display_name,
-        specialization: specialization,
         createdAt: newUser.created_at
       },
       token
     });
   } catch (error) {
-    console.error('Signup error:', {
-      name: error?.name,
-      message: error?.message,
-      stack: error?.stack,
-      // Supabase errors sometimes surface here
-      details: error?.details,
-      hint: error?.hint,
-      code: error?.code,
-    });
+    console.error('Signup error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
-
 
 // POST /auth/login
 export const login = async (req, res) => {
@@ -163,20 +102,9 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    // Get user by username with specialization
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from('users')
-      .select(`
-        id,
-        email,
-        username,
-        display_name,
-        bio,
-        profile_picture_url,
-        password_hash,
-        created_at,
-        user_specialization(specialization_type)
-      `)
+      .select('id, email, username, display_name, bio, profile_picture_url, password_hash, created_at, is_admin')
       .eq('username', username)
       .single();
 
@@ -184,24 +112,18 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Verify password
     const validPassword = await bcrypt.compare(password, user.password_hash);
-
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Extract specialization from nested data
-    const specialization = user.user_specialization?.[0]?.specialization_type || null;
-    const { user_specialization, password_hash, ...userWithoutSensitive } = user;
-
+    const { password_hash, ...userWithoutPassword } = user;
     const token = generateToken(user);
 
     return res.status(200).json({
       message: 'Login successful',
       user: {
-        ...userWithoutSensitive,
-        specialization,
+        ...userWithoutPassword,
         displayName: user.display_name,
         createdAt: user.created_at
       },
@@ -213,7 +135,7 @@ export const login = async (req, res) => {
   }
 };
 
-// POST /auth/logout (optional - mainly client-side)
+// POST /auth/logout
 export const logout = (req, res) => {
   return res.status(200).json({ message: 'Logout successful' });
 };

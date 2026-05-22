@@ -216,6 +216,21 @@ class ApiService {
     await this.client.delete(`/posts/${postId}`);
   }
 
+  async likePost(postId: string): Promise<{ liked: boolean }> {
+    const response = await this.client.post(`/posts/${postId}/like`);
+    return response.data;
+  }
+ 
+  async getComments(postId: string): Promise<any[]> {
+    const response = await this.client.get(`/posts/${postId}/comments`);
+    return response.data.comments;
+  }
+ 
+  async addComment(postId: string, content: string): Promise<any> {
+    const response = await this.client.post(`/posts/${postId}/comments`, { content });
+    return response.data.comment;
+  }
+
   // Follow methods
   async followUser(userId: string): Promise<void> {
     await this.client.post(`/follow/${userId}`);
@@ -266,11 +281,14 @@ class ApiService {
   }
 
   // Rankings methods
-  async getRankings(communityId: string, limit = 50, offset = 0): Promise<RankingEntry[]> {
-    const response = await this.client.get(`/rankings/${communityId}`, {
+  async getRankings(limit = 50, offset = 0): Promise<RankingEntry[]> {
+    const response = await this.client.get('/rankings', {
       params: { limit, offset },
     });
-    return response.data.rankings;
+ 
+    const raw = response.data.rankings || [];
+    console.log('Raw rankings:', JSON.stringify(raw, null, 2));
+    return raw;
   }
 
   async getAllRankings(): Promise<Record<string, any>> {

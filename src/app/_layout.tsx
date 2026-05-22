@@ -15,6 +15,7 @@ import AuthScreens from '@/screens/auth/AuthScreens';
 import UserProfileScreen from './user-profile';
 import PostCreateScreen from './new-post';
 import ChatScreen from './chat';
+import LogLiftsScreen from './log-lifts';
 
 const Stack = createNativeStackNavigator();
 
@@ -88,6 +89,15 @@ function RootLayoutContent() {
                   headerTitle: 'Chat'
                 }}
               />
+              <Stack.Screen
+  name="log-lifts"
+  component={LogLiftsScreen}
+  options={{
+    presentation: 'modal',
+    headerShown: true,
+    headerTitle: 'Log Lifts'
+  }}
+/>
             </>
           )}
         </Stack.Navigator>
