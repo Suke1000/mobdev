@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  StyleSheet,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Modal,
-  FlatList,
+  View, StyleSheet, Text, ScrollView, TouchableOpacity,
+  ActivityIndicator, Alert, Modal, FlatList,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
@@ -24,6 +17,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockingUser, setBlockingUser] = useState(false);
   const [showUsersListModal, setShowUsersListModal] = useState(false);
   const [listType, setListType] = useState<'followers' | 'following'>('followers');
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -41,12 +36,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
       try {
         setLoading(true);
         setIsFollowing(false);
+        setIsBlocked(false);
         const data = await api.getUserProfile(idToFetch);
         setProfile(data);
         if (user?.id && idToFetch !== user.id) {
           try {
             const followers = await api.getFollowers(idToFetch);
             setIsFollowing(followers.map((f: User) => f.id).includes(user.id));
+          } catch (e) {}
+          // Check if blocked
+          try {
+            const blocked = await api.getBlockedUsers();
+            setIsBlocked(blocked.some((b: any) => b.id === idToFetch));
           } catch (e) {}
         }
       } catch (error) {
@@ -90,6 +91,38 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
     }
   };
 
+  const handleToggleBlock = async () => {
+    if (!targetUserId || !user?.id) return;
+    const action = isBlocked ? 'Unblock' : 'Block';
+    const message = isBlocked
+      ? `Unblock @${profile?.username}? They will be able to see your posts and follow you again.`
+      : `Block @${profile?.username}? They won't be able to see your posts or message you.`;
+
+    Alert.alert(action, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: action, style: isBlocked ? 'default' : 'destructive',
+        onPress: async () => {
+          try {
+            setBlockingUser(true);
+            await api.blockUser(targetUserId);
+            setIsBlocked(!isBlocked);
+            if (!isBlocked) {
+              // If we just blocked, also unfollow
+              setIsFollowing(false);
+              setProfile(p => p ? { ...p, followerCount: Math.max(0, (p.followerCount || 0) - 1) } : p);
+            }
+            Alert.alert('✅ Done', isBlocked ? `@${profile?.username} unblocked` : `@${profile?.username} blocked`);
+          } catch (e) {
+            Alert.alert('Error', 'Failed to update block');
+          } finally {
+            setBlockingUser(false);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleShowFollowers = async () => {
     if (!profile?.id) return;
     setListType('followers');
@@ -126,25 +159,41 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
         <View style={styles.accent} />
       </View>
 
+      {/* Profile Card */}
       <View style={styles.profileCard}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarEmoji}>💪</Text>
         </View>
         <Text style={styles.username}>@{profile?.username}</Text>
         {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+
+        {/* Follow + Block buttons for other users */}
         {!isOwnProfile && (
-          <TouchableOpacity
-            style={[styles.followBtn, isFollowing && styles.followingBtn]}
-            onPress={handleToggleFollow}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.followBtnText, isFollowing && styles.followingBtnText]}>
-              {isFollowing ? '✓ Following' : '+ Follow'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.followBtn, isFollowing && styles.followingBtn]}
+              onPress={handleToggleFollow}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.followBtnText, isFollowing && styles.followingBtnText]}>
+                {isFollowing ? '✓ Following' : '+ Follow'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.blockBtn, isBlocked && styles.blockedBtn]}
+              onPress={handleToggleBlock}
+              disabled={blockingUser}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.blockBtnText, isBlocked && styles.blockedBtnText]}>
+                {blockingUser ? '...' : isBlocked ? 'Unblock' : '🚫 Block'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
+      {/* Stats */}
       <View style={styles.statsRow}>
         <TouchableOpacity style={styles.statBox} onPress={handleShowFollowers} activeOpacity={0.7}>
           <Text style={styles.statValue}>{profile?.followerCount || 0}</Text>
@@ -157,6 +206,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
         </TouchableOpacity>
       </View>
 
+      {/* PRs */}
       {profile?.stats && (
         <View style={styles.liftingCard}>
           <Text style={styles.sectionEyebrow}>PERSONAL RECORDS</Text>
@@ -187,6 +237,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
         </View>
       )}
 
+      {/* Own profile buttons */}
       {isOwnProfile && (
         <View style={styles.ownButtons}>
           {profile?.isAdmin && (
@@ -203,6 +254,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onLogout, userId: 
         </View>
       )}
 
+      {/* Followers/Following Modal */}
       <Modal visible={showUsersListModal} transparent animationType="slide" onRequestClose={() => setShowUsersListModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalSheet}>
@@ -255,11 +307,16 @@ const styles = StyleSheet.create({
   avatarCircle: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#222', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FF4D4D44', marginBottom: 14 },
   avatarEmoji: { fontSize: 40 },
   username: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', marginBottom: 6, letterSpacing: -0.3 },
-  bio: { fontSize: 13, color: '#777', textAlign: 'center', paddingHorizontal: 20, lineHeight: 18 },
-  followBtn: { marginTop: 14, backgroundColor: '#FF4D4D', borderRadius: 10, paddingHorizontal: 32, paddingVertical: 11, shadowColor: '#FF4D4D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+  bio: { fontSize: 13, color: '#777', textAlign: 'center', paddingHorizontal: 20, lineHeight: 18, marginBottom: 4 },
+  actionButtons: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  followBtn: { backgroundColor: '#FF4D4D', borderRadius: 10, paddingHorizontal: 24, paddingVertical: 11, shadowColor: '#FF4D4D', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
   followingBtn: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#2A2A2A', shadowOpacity: 0, elevation: 0 },
   followBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   followingBtnText: { color: '#555' },
+  blockBtn: { backgroundColor: '#1A1A1A', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11, borderWidth: 1.5, borderColor: '#2A2A2A' },
+  blockedBtn: { borderColor: '#FF4D4D44', backgroundColor: '#FF4D4D11' },
+  blockBtnText: { fontSize: 14, fontWeight: '700', color: '#888' },
+  blockedBtnText: { color: '#FF4D4D' },
   statsRow: { flexDirection: 'row', backgroundColor: '#1A1A1A', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#2A2A2A' },
   statBox: { flex: 1, alignItems: 'center' },
   statDivider: { width: 1, backgroundColor: '#2A2A2A', marginVertical: 4 },

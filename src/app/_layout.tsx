@@ -11,15 +11,14 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 import AuthScreens from '@/screens/auth/AuthScreens';
 
-// Import the user profile screen, post create screen, and chat screen
 import UserProfileScreen from './user-profile';
 import PostCreateScreen from './new-post';
 import ChatScreen from './chat';
 import LogLiftsScreen from './log-lifts';
+import SettingsScreen from '../screens/settings/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 
-// Keep the splash screen visible while we fetch the token
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutContent() {
@@ -39,7 +38,6 @@ function RootLayoutContent() {
         await SplashScreen.hideAsync();
       }
     };
-
     prepare();
   }, [restoreToken]);
 
@@ -66,38 +64,28 @@ function RootLayoutContent() {
               <Stack.Screen
                 name="user-profile"
                 component={UserProfileScreen}
-                options={{
-                  presentation: 'modal',
-                  headerShown: true,
-                  headerTitle: 'Profile'
-                }}
+                options={{ presentation: 'modal', headerShown: true, headerTitle: 'Profile' }}
               />
               <Stack.Screen
                 name="new-post"
                 component={PostCreateScreen}
-                options={{
-                  presentation: 'modal',
-                  headerShown: true,
-                  headerTitle: 'Create Post'
-                }}
+                options={{ presentation: 'modal', headerShown: true, headerTitle: 'Create Post' }}
               />
               <Stack.Screen
                 name="chat"
                 component={ChatScreen}
-                options={{
-                  headerShown: true,
-                  headerTitle: 'Chat'
-                }}
+                options={{ headerShown: true, headerTitle: 'Chat' }}
               />
               <Stack.Screen
-  name="log-lifts"
-  component={LogLiftsScreen}
-  options={{
-    presentation: 'modal',
-    headerShown: true,
-    headerTitle: 'Log Lifts'
-  }}
-/>
+                name="log-lifts"
+                component={LogLiftsScreen}
+                options={{ presentation: 'modal', headerShown: true, headerTitle: 'Log Lifts' }}
+              />
+              <Stack.Screen
+                name="settings"
+                component={SettingsScreen}
+                options={{ headerShown: true, headerTitle: 'Settings' }}
+              />
             </>
           )}
         </Stack.Navigator>

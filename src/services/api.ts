@@ -198,6 +198,24 @@ class ApiService {
     return response.data.post || response.data;
   }
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await this.client.post('/auth/change-password', { currentPassword, newPassword });
+  }
+ 
+  async deleteAccount(password: string): Promise<void> {
+    await this.client.delete('/auth/delete-account', { data: { password } });
+  }
+ 
+  async blockUser(userId: string): Promise<{ blocked: boolean }> {
+    const response = await this.client.post(`/users/${userId}/block`);
+    return response.data;
+  }
+ 
+  async getBlockedUsers(): Promise<any[]> {
+    const response = await this.client.get('/users/blocks/list');
+    return response.data.blockedUsers;
+  }
+
   async getFeed(limit = 20, offset = 0): Promise<Post[]> {
     const response = await this.client.get('/posts/feed', {
       params: { limit, offset },
